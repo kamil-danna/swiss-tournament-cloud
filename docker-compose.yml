@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 1. Database Relazionale (PostgreSQL)
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: player_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: playersdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Database NoSQL (MongoDB)
+  mongo-db:
+    image: mongo:6.0
+    container_name: tournament_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # 3. Microservizio Player (Node.js)
+  player-service:
+    build: ./player-service
+    container_name: player_service
+    environment:
+      DB_HOST: postgres-db
+      DB_USER: admin
+      DB_PASSWORD: password123
+      DB_NAME: playersdb
+      DB_PORT: 5432
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres-db
+
+  # 4. Microservizio Tournament (Python Flask)
+  tournament-service:
+    build: ./tournament-service
+    container_name: tournament_service
+    environment:
+      MONGO_URI: mongodb://admin:password123@mongo-db:27017/
+      PLAYER_SERVICE_URL: http://player-service:3001
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo-db
+      - player-service
+
+  # 5. Frontend (Nginx)
+  frontend:
+    build: ./frontend
+    container_name: tournament_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - player-service
+      - tournament-service
+
+volumes:
+  postgres_data:
+  mongo_data:
