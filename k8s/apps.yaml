@@ -1,0 +1,112 @@
+---
+# PLAYER SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: player-service
+spec:
+  selector:
+    app: player
+  ports:
+    - port: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: player-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: player
+  template:
+    metadata:
+      labels:
+        app: player
+    spec:
+      containers:
+        - name: player
+          image: ginomagico/player-service:v1
+          env:
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_USER
+              value: "admin"
+            - name: DB_PASSWORD
+              value: "password123"
+            - name: DB_NAME
+              value: "playersdb"
+          ports:
+            - containerPort: 3001
+
+---
+# TOURNAMENT SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: tournament-service
+spec:
+  selector:
+    app: tournament
+  ports:
+    - port: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tournament-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tournament
+  template:
+    metadata:
+      labels:
+        app: tournament
+    spec:
+      containers:
+        - name: tournament
+          image: ginomagico/tournament-service:v1
+          env:
+            - name: MONGO_URI
+              value: "mongodb://admin:password123@mongo-service:27017/"
+            - name: PLAYER_SERVICE_URL
+              value: "http://player-service:3001"
+          ports:
+            - containerPort: 5000
+
+---
+# FRONTEND
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ginomagico/tournament-frontend:v1
+          ports:
+            - containerPort: 80

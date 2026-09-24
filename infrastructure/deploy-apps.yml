@@ -1,0 +1,33 @@
+---
+- name: Deploy dell'applicazione su Kubernetes (K3s)
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Crea la cartella di destinazione sulla VM
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- bash -c "mkdir -p /home/ubuntu/k8s"
+
+    - name: Trasferisci i manifesti YAML nella VM Multipass
+      ansible.builtin.command:
+        cmd: multipass.exe transfer ../k8s/databases.yaml ../k8s/apps.yaml k8s-cluster:/home/ubuntu/k8s/
+
+    - name: Applica i manifesti dei Database
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- sudo k3s kubectl apply -f /home/ubuntu/k8s/databases.yaml
+
+    - name: Applica i manifesti delle App
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- sudo k3s kubectl apply -f /home/ubuntu/k8s/apps.yaml
+
+    - name: Attendi 10 secondi per la creazione dei container
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Controlla lo stato dei Pods
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- sudo k3s kubectl get pods
+      register: pods_status
+
+    - name: Mostra i Pods in esecuzione
+      ansible.builtin.debug:
+        msg: "{{ pods_status.stdout_lines }}"

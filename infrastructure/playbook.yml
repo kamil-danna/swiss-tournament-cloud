@@ -1,0 +1,20 @@
+---
+- name: Setup Kubernetes (K3s) su Multipass
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Scarica e installa K3s nel nodo Multipass
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- bash -c "curl -sfL https://get.k3s.io | sh -"
+      
+    - name: Attendi che il nodo Kubernetes sia Ready
+      ansible.builtin.command:
+        cmd: multipass.exe exec k8s-cluster -- bash -c "sudo k3s kubectl get nodes"
+      register: k3s_status
+      retries: 5
+      delay: 10
+      until: k3s_status.rc == 0
+
+    - name: Mostra lo stato del cluster
+      ansible.builtin.debug:
+        msg: "{{ k3s_status.stdout_lines }}"
