@@ -1,7 +1,7 @@
 uesta repository contiene l'implementazione in ambiente cloud di un gestore di tornei automatizzato basato sul sistema Svizzero.
 
 Struttura della repository
-Plaintext
+
 ├── .github
 │   └── workflows
 │       └── deploy.yaml
