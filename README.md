@@ -2,28 +2,27 @@ uesta repository contiene l'implementazione in ambiente cloud di un gestore di t
 
 Struttura della repository
 
-├── .github
-│ 
-└── workflows
-│ 
-└── deploy.yaml
-├── aws-infrastructure
-│ 
-├── main.tf
-│ └── eks.tf
-├── k8s-cloud
-│ └── apps.yaml
-├── frontend
-│ ├── Dockerfile
-│ └── index.html
-├── player-service
-│ ├── Dockerfile
-│ ├── index.js
-│ └── package.json
-└── tournament-service
-├── Dockerfile
-├── app.py
-└── requirements.txt
+Struttura della repository:
+
+.github/
+  workflows/
+    deploy.yaml
+aws-infrastructure/
+  main.tf
+  eks.tf
+k8s-cloud/
+  apps.yaml
+frontend/
+  Dockerfile
+  index.html
+player-service/
+  Dockerfile
+  index.js
+  package.json
+tournament-service/
+  Dockerfile
+  app.py
+  requirements.txt
 La repository contiene diverse directory principali:
 
 .github/workflows, impiegato per la gestione della pipeline CI/CD;
