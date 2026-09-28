@@ -1,22 +1,33 @@
 import os
 import math
+import uuid
+from decimal import Decimal
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pymongo import MongoClient
 import requests
+import boto3
 
 app = Flask(__name__)
 CORS(app)
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:password123@localhost:27017/")
 PLAYER_SERVICE_URL = os.getenv("PLAYER_SERVICE_URL", "http://localhost:3001")
 
-client = MongoClient(MONGO_URI)
-db = client["tournamentdb"]
-tournaments_col = db["tournaments"]
+# Connessione ad AWS DynamoDB
+dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
+table = dynamodb.Table('Tournaments')
 
 BYE_ID = 0
 BYE_NAME = "BYE"
+
+# Helper per convertire i Decimal di DynamoDB in numeri Python normali
+def convert_from_decimal(obj):
+    if isinstance(obj, list):
+        return [convert_from_decimal(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_from_decimal(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    return obj
 
 def compute_standings(tournament):
     players = tournament.get("players", [])
@@ -122,7 +133,10 @@ def create_tournament():
             return jsonify({"error": "Servono almeno 2 giocatori attivi per avviare un torneo"}), 400
 
         total_rounds = math.ceil(math.log2(count))
+        tournament_id = str(uuid.uuid4())
+        
         tournament = {
+            "id": tournament_id,
             "name": request.json.get("name", "Torneo Svizzera"),
             "total_rounds": total_rounds,
             "current_round": 0,
@@ -130,25 +144,29 @@ def create_tournament():
             "matches": [],
             "status": "created"
         }
-        inserted = tournaments_col.insert_one(tournament)
-        return jsonify({"message": "Torneo creato", "tournament_id": str(inserted.inserted_id), "total_rounds": total_rounds}), 201
+        
+        table.put_item(Item=tournament)
+        
+        return jsonify({"message": "Torneo creato", "tournament_id": tournament_id, "total_rounds": total_rounds}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/tournaments/<tournament_id>/next-round", methods=["POST"])
 def next_round(tournament_id):
-    from bson.objectid import ObjectId
-    t = tournaments_col.find_one({"_id": ObjectId(tournament_id)})
-    if not t:
+    res = table.get_item(Key={"id": tournament_id})
+    if "Item" not in res:
         return jsonify({"error": "Torneo non trovato"}), 404
+        
+    t = convert_from_decimal(res["Item"])
 
-    curr_round = t.get("current_round", 0)
+    curr_round = int(t.get("current_round", 0))
     for m in t.get("matches", []):
         if m["round"] == curr_round and not m.get("concluso", False):
             return jsonify({"error": f"Il round {curr_round} non è ancora terminato"}), 400
 
-    if curr_round >= t["total_rounds"]:
-        tournaments_col.update_one({"_id": ObjectId(tournament_id)}, {"$set": {"status": "finished"}})
+    if curr_round >= int(t["total_rounds"]):
+        t["status"] = "finished"
+        table.put_item(Item=t)
         return jsonify({"message": "Torneo già completato", "status": "finished"}), 200
 
     next_r = curr_round + 1
@@ -160,7 +178,7 @@ def next_round(tournament_id):
         bye_player = None
         for cand in reversed(available):
             had_bye = any(
-                (m["player1_id"] == cand["id"] or m["player2_id"] == cand["id"]) and m["player2_id"] == BYE_ID
+                (int(m["player1_id"]) == int(cand["id"]) or int(m["player2_id"]) == int(cand["id"])) and int(m["player2_id"]) == BYE_ID
                 for m in t.get("matches", [])
             )
             if not had_bye:
@@ -173,7 +191,7 @@ def next_round(tournament_id):
         available.remove(bye_player)
         bye_match = {
             "round": next_r,
-            "player1_id": bye_player["id"],
+            "player1_id": int(bye_player["id"]),
             "player1_name": f"{bye_player['cognome']} {bye_player['nome']}",
             "player2_id": BYE_ID,
             "player2_name": BYE_NAME,
@@ -183,7 +201,7 @@ def next_round(tournament_id):
 
     past_pairs = set()
     for m in t.get("matches", []):
-        past_pairs.add(tuple(sorted([m["player1_id"], m["player2_id"]])))
+        past_pairs.add(tuple(sorted([int(m["player1_id"]), int(m["player2_id"])])))
 
     def pair_players(pool):
         if not pool:
@@ -191,7 +209,7 @@ def next_round(tournament_id):
         p1 = pool[0]
         for i in range(1, len(pool)):
             p2 = pool[i]
-            pair_key = tuple(sorted([p1["id"], p2["id"]]))
+            pair_key = tuple(sorted([int(p1["id"]), int(p2["id"])]))
             if pair_key not in past_pairs:
                 remainder = pool[1:i] + pool[i+1:]
                 sub_pairs = pair_players(remainder)
@@ -202,16 +220,16 @@ def next_round(tournament_id):
     paired = pair_players(available)
     if paired is None:
         paired = []
-        for i in range(0, len(available), 2):
+        for i in range(0, len(available) - 1, 2):
             paired.append((available[i], available[i+1]))
 
     new_matches = []
     for p1, p2 in paired:
         new_matches.append({
             "round": next_r,
-            "player1_id": p1["id"],
+            "player1_id": int(p1["id"]),
             "player1_name": f"{p1['cognome']} {p1['nome']}",
-            "player2_id": p2["id"],
+            "player2_id": int(p2["id"]),
             "player2_name": f"{p2['cognome']} {p2['nome']}",
             "esito": None,
             "concluso": False
@@ -220,49 +238,43 @@ def next_round(tournament_id):
     if bye_match:
         new_matches.append(bye_match)
 
-    tournaments_col.update_one(
-        {"_id": ObjectId(tournament_id)},
-        {
-            "$set": {"current_round": next_r, "status": "in_progress"},
-            "$push": {"matches": {"$each": new_matches}}
-        }
-    )
+    t["current_round"] = next_r
+    t["status"] = "in_progress"
+    t["matches"].extend(new_matches)
+    
+    table.put_item(Item=t)
 
     return jsonify({"message": f"Round {next_r} generato", "matches": new_matches}), 200
 
 @app.route("/tournaments/<tournament_id>/match-result", methods=["POST"])
 def set_result(tournament_id):
-    from bson.objectid import ObjectId
     data = request.json
-    p1_id = data.get("player1_id")
-    p2_id = data.get("player2_id")
-    rnd = data.get("round")
+    p1_id = int(data.get("player1_id"))
+    p2_id = int(data.get("player2_id"))
+    rnd = int(data.get("round"))
     esito = data.get("esito")
 
     if esito not in ["win_p1", "win_p2", "double_loss", "drop_p1", "drop_p2"]:
         return jsonify({"error": "Esito non valido"}), 400
 
-    res = tournaments_col.update_one(
-        {
-            "_id": ObjectId(tournament_id),
-            "matches": {
-                "$elemMatch": {
-                    "round": rnd,
-                    "player1_id": p1_id,
-                    "player2_id": p2_id
-                }
-            }
-        },
-        {
-            "$set": {
-                "matches.$.esito": esito,
-                "matches.$.concluso": True
-            }
-        }
-    )
+    res = table.get_item(Key={"id": tournament_id})
+    if "Item" not in res:
+        return jsonify({"error": "Torneo non trovato"}), 404
+        
+    t = convert_from_decimal(res["Item"])
+    match_found = False
+    
+    for m in t["matches"]:
+        if int(m["round"]) == rnd and int(m["player1_id"]) == p1_id and int(m["player2_id"]) == p2_id:
+            m["esito"] = esito
+            m["concluso"] = True
+            match_found = True
+            break
 
-    if res.matched_count == 0:
+    if not match_found:
         return jsonify({"error": "Match non trovato"}), 404
+
+    table.put_item(Item=t)
 
     if esito == "drop_p1":
         requests.put(f"{PLAYER_SERVICE_URL}/players/{p1_id}/drop")
@@ -273,12 +285,13 @@ def set_result(tournament_id):
 
 @app.route("/tournaments/<tournament_id>/standings", methods=["GET"])
 def get_standings(tournament_id):
-    from bson.objectid import ObjectId
-    t = tournaments_col.find_one({"_id": ObjectId(tournament_id)})
-    if not t:
+    res = table.get_item(Key={"id": tournament_id})
+    if "Item" not in res:
         return jsonify({"error": "Torneo non trovato"}), 404
-
+        
+    t = convert_from_decimal(res["Item"])
     standings = compute_standings(t)
+    
     return jsonify({
         "tournament_name": t.get("name"),
         "current_round": t.get("current_round"),
@@ -288,4 +301,4 @@ def get_standings(tournament_id):
     }), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5001)

@@ -1,0 +1,65 @@
+name: Deploy to AWS EKS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del codice
+      uses: actions/checkout@v3
+
+    - name: Configura le credenziali AWS
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-central-1
+
+    - name: Login su Amazon ECR (Container Registry)
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Costruisci e fai il push dell'immagine Player Service
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: swiss-player-service
+        IMAGE_TAG: latest
+      run: |
+        cd player-service
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Costruisci e fai il push dell'immagine Tournament Service
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: swiss-tournament-service
+        IMAGE_TAG: latest
+      run: |
+        cd tournament-service
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Costruisci e fai il push dell'immagine Frontend
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: swiss-frontend
+        IMAGE_TAG: latest
+      run: |
+        cd frontend
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Aggiorna il contesto Kubernetes (EKS)
+      run: aws eks update-kubeconfig --name swiss-tournament-cluster --region eu-central-1
+
+    - name: Deploy su Kubernetes
+      run: |
+        kubectl apply -f k8s-cloud/
+        kubectl set image deployment/player-deployment player=$ECR_REGISTRY/swiss-player-service:$IMAGE_TAG
+        kubectl set image deployment/tournament-deployment tournament=$ECR_REGISTRY/swiss-tournament-service:$IMAGE_TAG
+        kubectl set image deployment/frontend-deployment frontend=$ECR_REGISTRY/swiss-frontend:$IMAGE_TAG

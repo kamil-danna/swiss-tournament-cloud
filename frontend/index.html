@@ -1,22 +1,81 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
   <meta charset="UTF-8">
   <title>Gestore Tornei Svizzera</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f4f9; }
-    h1, h2, h3 { color: #333; }
-    .container { display: flex; gap: 20px; flex-wrap: wrap; }
-    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; min-width: 320px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #eee; }
-    input, button, select { padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
-    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
-    button:hover { background-color: #0056b3; }
-    .match-box { border-bottom: 1px solid #ccc; padding: 10px 0; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f4f4f9;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: #333;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      flex: 1;
+      min-width: 320px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #eee;
+    }
+
+    input,
+    button,
+    select {
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .match-box {
+      border-bottom: 1px solid #ccc;
+      padding: 10px 0;
+    }
   </style>
 </head>
+
 <body>
 
   <h1>🏆 Gestore Torneo Svizzera</h1>
@@ -28,7 +87,7 @@
       <input type="text" id="nome" placeholder="Nome">
       <input type="text" id="cognome" placeholder="Cognome">
       <button onclick="addPlayer()">Aggiungi Giocatore</button>
-      
+
       <h3>Partecipanti Registrati</h3>
       <ul id="players-list"></ul>
     </div>
@@ -40,7 +99,8 @@
       <button onclick="createTournament()">Avvia Nuovo Torneo</button>
       <div id="tournament-info" style="margin-top: 10px; font-weight: bold;"></div>
 
-      <button id="btn-next-round" style="display:none; margin-top: 15px;" onclick="generateNextRound()">Genera Prossimo Round</button>
+      <button id="btn-next-round" style="display:none; margin-top: 15px;" onclick="generateNextRound()">Genera Prossimo
+        Round</button>
 
       <h3>Partite del Round</h3>
       <div id="matches-list">Nessun round attivo.</div>
@@ -63,14 +123,16 @@
         </tr>
       </thead>
       <tbody id="standings-body">
-        <tr><td colspan="7">Nessun dato disponibile</td></tr>
+        <tr>
+          <td colspan="7">Nessun dato disponibile</td>
+        </tr>
       </tbody>
     </table>
   </div>
 
   <script>
     const PLAYER_API = "http://localhost:3001";
-    const TOURNAMENT_API = "http://localhost:5000";
+    const TOURNAMENT_API = "http://localhost:5001";
     let currentTournamentId = null;
 
     // Carica giocatori esistenti
@@ -116,7 +178,7 @@
       const data = await res.json();
       if (res.ok) {
         currentTournamentId = data.tournament_id;
-        document.getElementById("tournament-info").innerText = 
+        document.getElementById("tournament-info").innerText =
           `Torneo ID: ${currentTournamentId} | Round previsti: ${data.total_rounds}`;
         document.getElementById("btn-next-round").style.display = "inline-block";
         updateStandings();
@@ -213,4 +275,5 @@
     loadPlayers();
   </script>
 </body>
+
 </html>

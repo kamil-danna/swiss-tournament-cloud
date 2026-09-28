@@ -1,0 +1,117 @@
+---
+# PLAYER SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: player-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: player
+  ports:
+    - port: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: player-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: player
+  template:
+    metadata:
+      labels:
+        app: player
+    spec:
+      containers:
+        - name: player
+          # L'URL dell'immagine verrà sovrascritto in automatico da GitHub Actions
+          image: swiss-player-service:latest
+          env:
+            - name: DB_HOST
+              value: "<INDIRIZZO_RDS_LUNGO>" # <-- SOSTITUISCI QUI (senza :5432)
+            - name: DB_USER
+              value: "admin"
+            - name: DB_PASSWORD
+              value: "password123"
+            - name: DB_NAME
+              value: "playersdb"
+          ports:
+            - containerPort: 3001
+
+---
+# TOURNAMENT SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: tournament-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: tournament
+  ports:
+    - port: 5001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tournament-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tournament
+  template:
+    metadata:
+      labels:
+        app: tournament
+    spec:
+      containers:
+        - name: tournament
+          image: swiss-tournament-service:latest
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "<LA_TUA_ACCESS_KEY>" # <-- SOSTITUISCI QUI
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "<LA_TUA_SECRET_KEY>" # <-- SOSTITUISCI QUI
+            - name: AWS_DEFAULT_REGION
+              value: "eu-central-1"
+            - name: PLAYER_SERVICE_URL
+              value: "http://player-service:3001"
+          ports:
+            - containerPort: 5001
+
+---
+# FRONTEND
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: swiss-frontend:latest
+          ports:
+            - containerPort: 80
