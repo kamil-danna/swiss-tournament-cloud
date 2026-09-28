@@ -12,3 +12,21 @@ env/
 # OS Files
 .DS_Store
 Thumbs.db
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+
+# Archives
+*.zip
+*.tar.gz
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment files with secrets
+.env
