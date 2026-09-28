@@ -3,10 +3,13 @@ uesta repository contiene l'implementazione in ambiente cloud di un gestore di t
 Struttura della repository
 
 ├── .github
-│ └── workflows
-│ └── deploy.yaml
+│ 
+└── workflows
+│ 
+└── deploy.yaml
 ├── aws-infrastructure
-│ ├── main.tf
+│ 
+├── main.tf
 │ └── eks.tf
 ├── k8s-cloud
 │ └── apps.yaml
