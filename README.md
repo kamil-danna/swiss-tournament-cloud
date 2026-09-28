@@ -5,7 +5,9 @@ Struttura della repository
 Struttura della repository:
 
 .github/
+
   workflows/
+  
     deploy.yaml
 aws-infrastructure/
   main.tf
