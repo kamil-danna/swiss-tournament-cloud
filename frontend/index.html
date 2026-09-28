@@ -94,7 +94,7 @@
 
     <!-- Blocco Torneo -->
     <div class="card">
-      <h2>2. Controllo Torneo (MongoDB)</h2>
+      <h2>2. Controllo Torneo (DynamoDB)</h2>
       <input type="text" id="torneo-nome" placeholder="Nome Torneo" value="Torneo Autunnale">
       <button onclick="createTournament()">Avvia Nuovo Torneo</button>
       <div id="tournament-info" style="margin-top: 10px; font-weight: bold;"></div>
@@ -131,8 +131,8 @@
   </div>
 
   <script>
-    const PLAYER_API = "http://localhost:3001";
-    const TOURNAMENT_API = "http://localhost:5001";
+    const PLAYER_API = "http://afd3e5019268b418c86db557de0999ff-414311054.eu-central-1.elb.amazonaws.com:3001";
+    const TOURNAMENT_API = "http://af6fd3fd151aa4024b1411df2eac8844-830432343.eu-central-1.elb.amazonaws.com:5001";
     let currentTournamentId = null;
 
     // Carica giocatori esistenti
@@ -152,6 +152,7 @@
       }
     }
 
+    // Aggiungi un nuovo giocatore
     async function addPlayer() {
       const nome = document.getElementById("nome").value;
       const cognome = document.getElementById("cognome").value;
@@ -168,6 +169,7 @@
       loadPlayers();
     }
 
+    // Crea un nuovo torneo
     async function createTournament() {
       const name = document.getElementById("torneo-nome").value;
       const res = await fetch(`${TOURNAMENT_API}/tournaments`, {
@@ -187,6 +189,7 @@
       }
     }
 
+    // Genera il prossimo round
     async function generateNextRound() {
       if (!currentTournamentId) return;
       const res = await fetch(`${TOURNAMENT_API}/tournaments/${currentTournamentId}/next-round`, {
@@ -201,6 +204,7 @@
       }
     }
 
+    // Mostra le partite generate
     function renderMatches(matches) {
       const container = document.getElementById("matches-list");
       container.innerHTML = "";
@@ -230,6 +234,7 @@
       });
     }
 
+    // Invia il risultato della partita
     async function submitResult(round, p1, p2) {
       const select = document.getElementById(`esito-${p1}-${p2}`);
       const esito = select.value;
@@ -250,6 +255,7 @@
       }
     }
 
+    // Aggiorna la classifica
     async function updateStandings() {
       if (!currentTournamentId) return;
       const res = await fetch(`${TOURNAMENT_API}/tournaments/${currentTournamentId}/standings`);
@@ -272,6 +278,7 @@
       });
     }
 
+    // Carica i giocatori al primo avvio della pagina
     loadPlayers();
   </script>
 </body>

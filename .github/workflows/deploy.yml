@@ -5,61 +5,36 @@ on:
     branches:
       - main
 
+env:
+  AWS_REGION: eu-central-1                   # <-- Cambia questa se usi un'altra regione
+  EKS_CLUSTER_NAME: swiss-tournament-cluster # <-- Inserisci il nome del tuo cluster EKS
+
 jobs:
   deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout del codice
-      uses: actions/checkout@v3
+    - name: 1. Checkout del codice
+      uses: actions/checkout@v4
 
-    - name: Configura le credenziali AWS
-      uses: aws-actions/configure-aws-credentials@v2
+    - name: 2. Configura le credenziali AWS
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-central-1
+        aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login su Amazon ECR (Container Registry)
+    - name: 3. Verifica connessione (Debug)
+      run: aws sts get-caller-identity
+
+    - name: 4. Login su Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Costruisci e fai il push dell'immagine Player Service
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: swiss-player-service
-        IMAGE_TAG: latest
-      run: |
-        cd player-service
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-    - name: Costruisci e fai il push dell'immagine Tournament Service
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: swiss-tournament-service
-        IMAGE_TAG: latest
-      run: |
-        cd tournament-service
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-    - name: Costruisci e fai il push dell'immagine Frontend
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: swiss-frontend
-        IMAGE_TAG: latest
-      run: |
-        cd frontend
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-    - name: Aggiorna il contesto Kubernetes (EKS)
-      run: aws eks update-kubeconfig --name swiss-tournament-cluster --region eu-central-1
-
-    - name: Deploy su Kubernetes
-      run: |
-        kubectl apply -f k8s-cloud/
-        kubectl set image deployment/player-deployment player=$ECR_REGISTRY/swiss-player-service:$IMAGE_TAG
-        kubectl set image deployment/tournament-deployment tournament=$ECR_REGISTRY/swiss-tournament-service:$IMAGE_TAG
-        kubectl set image deployment/frontend-deployment frontend=$ECR_REGISTRY/swiss-frontend:$IMAGE_TAG
+    # Da qui in poi ci saranno i passaggi per buildare le immagini
+    # e applicare i file Kubernetes (kubectl apply)
+    # Li attiviamo non appena confermiamo che il login AWS funziona!
+    
+    - name: 5. Messaggio di successo
+      run: echo "Autenticazione AWS completata con successo!"

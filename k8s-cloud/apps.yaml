@@ -16,7 +16,7 @@ kind: Deployment
 metadata:
   name: player-deployment
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: player
@@ -28,10 +28,10 @@ spec:
       containers:
         - name: player
           # L'URL dell'immagine verrà sovrascritto in automatico da GitHub Actions
-          image: swiss-player-service:latest
+          image: ginomagico/player-service:v1
           env:
             - name: DB_HOST
-              value: "<INDIRIZZO_RDS_LUNGO>" # <-- SOSTITUISCI QUI (senza :5432)
+              value: "player-db-cloud.c1kgw0uygj51.eu-central-1.rds.amazonaws.com"
             - name: DB_USER
               value: "admin"
             - name: DB_PASSWORD
@@ -59,7 +59,7 @@ kind: Deployment
 metadata:
   name: tournament-deployment
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: tournament
@@ -70,12 +70,12 @@ spec:
     spec:
       containers:
         - name: tournament
-          image: swiss-tournament-service:latest
+          image: ginomagico/tournament-service:v2
           env:
             - name: AWS_ACCESS_KEY_ID
-              value: "<LA_TUA_ACCESS_KEY>" # <-- SOSTITUISCI QUI
+              value: "INSERISCI_LA_TUA_CHIAVE_QUI"
             - name: AWS_SECRET_ACCESS_KEY
-              value: "<LA_TUA_SECRET_KEY>" # <-- SOSTITUISCI QUI
+              value: "INSERISCI_LA_TUA_CHIAVE_QUI"
             - name: AWS_DEFAULT_REGION
               value: "eu-central-1"
             - name: PLAYER_SERVICE_URL
@@ -101,7 +101,9 @@ kind: Deployment
 metadata:
   name: frontend-deployment
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: frontend
@@ -112,6 +114,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: swiss-frontend:latest
+          image: ginomagico/tournament-frontend:v1
           ports:
             - containerPort: 80
